@@ -1,0 +1,64 @@
+import network
+import urequests
+import time
+from machine import Pin
+
+# ==== CẤU HÌNH THIẾT BỊ ====
+pir = Pin(5, Pin.IN)
+led = Pin(6, Pin.OUT)
+buzzer = Pin(16, Pin.OUT)
+
+# ==== CẤU HÌNH WIFI ====
+ssid = 'Miu'
+password = 'tptn14082005'
+
+# ==== PUSHSAFER PRIVATE KEY ====
+PUSHSAFER_KEY = 'UGOfXqvXUwLMzEPDWS4Q'  # thay bằng mã của bạn
+
+# ==== KẾT NỐI WIFI ====
+def connect_wifi():
+    wifi = network.WLAN(network.STA_IF)
+    wifi.active(True)
+    if not wifi.isconnected():
+        print(" Đang kết nối WiFi...")
+        wifi.connect(ssid, password)
+        while not wifi.isconnected():
+            time.sleep(0.5)
+    print(" WiFi đã kết nối:", wifi.ifconfig())
+
+# ==== GỬI THÔNG BÁO PUSHSAFER ====
+def send_push_notification():
+    url = "https://www.pushsafer.com/api"
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    data = f"k={PUSHSAFER_KEY}&m=🚨 Phát hiện chuyển động!&t=ESP32 Báo động&d=0"
+    try:
+        print(" Gửi thông báo PushSafer...")
+        response = urequests.post(url, data=data, headers=headers)
+        print(" Phản hồi:", response.text)
+        response.close()
+    except Exception as e:
+        print(" Lỗi gửi thông báo:", e)
+
+# ==== VÒNG LẶP CHÍNH ====
+def main():
+    connect_wifi()
+    last_notify_time = 0
+
+    while True:
+        if pir.value() == 1:
+            print(" Phát hiện chuyển động!")
+            led.on()
+            buzzer.on()
+
+            current_time = time.ticks_ms()
+            if time.ticks_diff(current_time, last_notify_time) > 10000:
+                send_push_notification()
+                last_notify_time = current_time
+
+            time.sleep(2)  # Bật 2 giây
+            led.off()
+            buzzer.off()
+
+        time.sleep(0.05)  # Kiểm tra lại nhanh
+
+main()
